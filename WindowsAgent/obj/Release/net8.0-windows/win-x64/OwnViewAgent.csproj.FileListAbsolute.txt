@@ -1,0 +1,14 @@
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Release\net8.0-windows\win-x64\OwnViewAgent.exe
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Release\net8.0-windows\win-x64\OwnViewAgent.deps.json
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Release\net8.0-windows\win-x64\OwnViewAgent.runtimeconfig.json
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Release\net8.0-windows\win-x64\OwnViewAgent.dll
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Release\net8.0-windows\win-x64\OwnViewAgent.pdb
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\OwnViewAgent.GeneratedMSBuildEditorConfig.editorconfig
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\OwnViewAgent.AssemblyInfoInputs.cache
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\OwnViewAgent.AssemblyInfo.cs
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\OwnViewAgent.csproj.CoreCompileInputs.cache
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\OwnViewAgent.dll
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\refint\OwnViewAgent.dll
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\OwnViewAgent.pdb
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\OwnViewAgent.genruntimeconfig.cache
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Release\net8.0-windows\win-x64\ref\OwnViewAgent.dll

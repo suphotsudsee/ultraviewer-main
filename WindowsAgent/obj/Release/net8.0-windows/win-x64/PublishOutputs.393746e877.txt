@@ -1,0 +1,5 @@
+C:\fullstack\ultraviewer-main\WindowsAgent\publish\win-x64\OwnViewAgent.exe
+C:\fullstack\ultraviewer-main\WindowsAgent\publish\win-x64\OwnViewAgent.dll
+C:\fullstack\ultraviewer-main\WindowsAgent\publish\win-x64\OwnViewAgent.deps.json
+C:\fullstack\ultraviewer-main\WindowsAgent\publish\win-x64\OwnViewAgent.runtimeconfig.json
+C:\fullstack\ultraviewer-main\WindowsAgent\publish\win-x64\OwnViewAgent.pdb

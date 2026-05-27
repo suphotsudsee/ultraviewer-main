@@ -1,0 +1,14 @@
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Debug\net8.0-windows\OwnViewAgent.exe
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Debug\net8.0-windows\OwnViewAgent.deps.json
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Debug\net8.0-windows\OwnViewAgent.runtimeconfig.json
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Debug\net8.0-windows\OwnViewAgent.dll
+C:\fullstack\ultraviewer-main\WindowsAgent\bin\Debug\net8.0-windows\OwnViewAgent.pdb
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.GeneratedMSBuildEditorConfig.editorconfig
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.AssemblyInfoInputs.cache
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.AssemblyInfo.cs
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.csproj.CoreCompileInputs.cache
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.dll
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\refint\OwnViewAgent.dll
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.pdb
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.genruntimeconfig.cache
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\ref\OwnViewAgent.dll

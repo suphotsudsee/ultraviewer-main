@@ -1,0 +1,7 @@
+{
+  "serverUrl": "https://remote.example.com",
+  "agentKey": "change-this-agent-key",
+  "agentName": "DESKTOP-OWNVIEW",
+  "requireVisibleApproval": true,
+  "allowRemoteInput": false
+}
