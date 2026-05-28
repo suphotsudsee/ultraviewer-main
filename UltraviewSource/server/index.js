@@ -1,17 +1,21 @@
 import { createServer } from 'node:http'
 import { randomBytes } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 import { appendFile, mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { WebSocket, WebSocketServer } from 'ws'
+
+const SERVER_DIR = dirname(fileURLToPath(import.meta.url))
+const APP_DIR = dirname(SERVER_DIR)
+
+loadEnvFile(join(APP_DIR, '.env'))
 
 const PORT = Number(process.env.OWNVIEW_SIGNAL_PORT ?? 8787)
 const HOST = process.env.OWNVIEW_HOST ?? '127.0.0.1'
 const PUBLIC_URL = process.env.OWNVIEW_PUBLIC_URL ?? `http://${HOST}:${PORT}`
 const ALLOWED_ORIGIN = process.env.OWNVIEW_ALLOWED_ORIGIN ?? '*'
 const AGENT_SHARED_KEY = process.env.OWNVIEW_AGENT_SHARED_KEY ?? ''
-const SERVER_DIR = dirname(fileURLToPath(import.meta.url))
-const APP_DIR = dirname(SERVER_DIR)
 const DIST_DIR = join(APP_DIR, 'dist')
 const DATA_DIR = join(SERVER_DIR, 'data')
 const AUDIT_LOG_PATH = join(DATA_DIR, 'audit-log.jsonl')
@@ -27,6 +31,25 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.txt': 'text/plain; charset=utf-8',
   '.webp': 'image/webp',
+}
+
+function loadEnvFile(filePath) {
+  if (!existsSync(filePath)) return
+
+  const lines = readFileSync(filePath, 'utf8').split(/\r?\n/)
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex === -1) continue
+
+    const key = trimmed.slice(0, separatorIndex).trim()
+    const value = trimmed.slice(separatorIndex + 1).trim()
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value
+    }
+  }
 }
 
 function parseIceServers() {

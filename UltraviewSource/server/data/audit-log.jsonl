@@ -122,3 +122,5 @@
 {"id":"c5be5196ca08a47b","timestamp":"2026-05-27T11:07:21.710Z","deviceId":"304643232","partnerId":"","event":"agent.disconnected","status":"ready","message":"Native agent disconnected","metadata":{}}
 {"id":"c74aaeb6f35e7dd8","timestamp":"2026-05-27T11:07:21.712Z","deviceId":"603857820","partnerId":"","event":"agent.disconnected","status":"ready","message":"Native agent disconnected","metadata":{}}
 {"id":"6669b6d486576960","timestamp":"2026-05-27T11:10:35.301Z","deviceId":"748488305","partnerId":"","event":"session.created","status":"ready","message":"Session credentials created","metadata":{}}
+{"id":"1cd54c0ed3b9a7e5","timestamp":"2026-05-27T11:45:54.309Z","deviceId":"585537893","partnerId":"","event":"session.created","status":"ready","message":"Session credentials created","metadata":{}}
+{"id":"664a03d84d666e79","timestamp":"2026-05-28T02:23:02.619Z","deviceId":"924176831","partnerId":"","event":"session.created","status":"ready","message":"Session credentials created","metadata":{}}
