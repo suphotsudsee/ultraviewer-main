@@ -62,7 +62,7 @@ public sealed class InputControlService
         var button = input.TryGetProperty("button", out var buttonElement) ? buttonElement.GetString() : "left";
         var deltaY = input.TryGetProperty("deltaY", out var deltaElement) ? deltaElement.GetDouble() : 0;
 
-        var bounds = Screen.PrimaryScreen?.Bounds ?? SystemInformation.VirtualScreen;
+        var bounds = SystemInformation.VirtualScreen;
         var screenX = bounds.Left + (int)Math.Round(Math.Clamp(x, 0, 1) * Math.Max(1, bounds.Width - 1));
         var screenY = bounds.Top + (int)Math.Round(Math.Clamp(y, 0, 1) * Math.Max(1, bounds.Height - 1));
         SetCursorPos(screenX, screenY);

@@ -42,7 +42,7 @@ public sealed class ScreenCaptureService : IDisposable
         {
             try
             {
-                var frame = CapturePrimaryScreen();
+                var frame = CaptureVirtualScreen();
                 await _client.SendScreenFrameAsync(frame.Image, frame.Width, frame.Height, cancellationToken);
                 await Task.Delay(TimeSpan.FromMilliseconds(900), cancellationToken);
             }
@@ -63,9 +63,9 @@ public sealed class ScreenCaptureService : IDisposable
         }
     }
 
-    private static ScreenFrame CapturePrimaryScreen()
+    private static ScreenFrame CaptureVirtualScreen()
     {
-        var bounds = Screen.PrimaryScreen?.Bounds ?? SystemInformation.VirtualScreen;
+        var bounds = SystemInformation.VirtualScreen;
         using var screenshot = new Bitmap(bounds.Width, bounds.Height);
         using (var graphics = Graphics.FromImage(screenshot))
         {

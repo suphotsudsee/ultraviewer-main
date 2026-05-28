@@ -12,3 +12,4 @@ C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\refint\OwnVi
 C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.pdb
 C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.genruntimeconfig.cache
 C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\ref\OwnViewAgent.dll
+C:\fullstack\ultraviewer-main\WindowsAgent\obj\Debug\net8.0-windows\OwnViewAgent.sourcelink.json

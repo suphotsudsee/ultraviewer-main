@@ -5,6 +5,8 @@ import {
   Network,
   KeyRound,
   Lock,
+  Maximize2,
+  Minimize2,
   MessageSquareText,
   MonitorUp,
   PhoneOff,
@@ -62,6 +64,8 @@ interface AgentInfo {
   name: string
   connectedAt: string
   lastSeenAt: string
+  lastFrameAt: string
+  frameCount: number
   requireVisibleApproval: boolean
   allowRemoteInput: boolean
 }
@@ -151,12 +155,14 @@ function App() {
   const [isSharingScreen, setIsSharingScreen] = useState(false)
   const [hasRemoteScreen, setHasRemoteScreen] = useState(false)
   const [agentScreenFrame, setAgentScreenFrame] = useState('')
+  const [isRemoteFullscreen, setIsRemoteFullscreen] = useState(false)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const localScreenStreamRef = useRef<MediaStream | null>(null)
   const remoteScreenStreamRef = useRef<MediaStream | null>(null)
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
+  const remoteScreenRef = useRef<HTMLDivElement | null>(null)
   const [messages, setMessages] = useState<string[]>([
     'System ready. Every support session requires visible user consent.',
     'Share your ID and password only with a trusted support operator.',
@@ -285,6 +291,15 @@ function App() {
     peerConnection.onconnectionstatechange = () => {
       setRtcState(peerConnection.connectionState)
       appendSignal(`RTC ${peerConnection.connectionState}`)
+      if (peerConnection.connectionState === 'failed' && session.status === 'connected') {
+        void peerConnection.createOffer({ iceRestart: true })
+          .then(async (offer) => {
+            await peerConnection.setLocalDescription(offer)
+            await relayWebRtcSignal('offer', offer)
+            appendSignal('RTC ICE restart sent')
+          })
+          .catch(() => appendSignal('RTC ICE restart failed'))
+      }
     }
     peerConnection.ondatachannel = (event) => {
       appendSignal('received RTC data channel')
@@ -305,7 +320,7 @@ function App() {
     peerConnectionRef.current = peerConnection
     setRtcState('peer created')
     return peerConnection
-  }, [appendSignal, attachDataChannel, publicConfig.iceServers, relayWebRtcSignal])
+  }, [appendSignal, attachDataChannel, publicConfig.iceServers, relayWebRtcSignal, session.status])
 
   const handleWebRtcSignal = useCallback(async (signal: WebRtcSignal) => {
     if (signal.type === 'offer') {
@@ -486,6 +501,15 @@ function App() {
   }, [isSharingScreen])
 
   useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsRemoteFullscreen(document.fullscreenElement === remoteScreenRef.current)
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
+
+  useEffect(() => {
     if (!serverOnline || !sessionToken || session.deviceId === fallbackSession.deviceId) return
 
     let cancelled = false
@@ -573,6 +597,19 @@ function App() {
     }
   }
 
+  async function toggleRemoteFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+        return
+      }
+
+      await remoteScreenRef.current?.requestFullscreen()
+    } catch {
+      appendMessage('Fullscreen is blocked by the browser. Click inside the remote screen and try again.')
+    }
+  }
+
   async function approveSession() {
     try {
       const response = await postJson<SessionResponse>(`/api/sessions/${session.deviceId}/approve`, undefined, sessionToken)
@@ -642,6 +679,7 @@ function App() {
       setIsSharingScreen(true)
 
       const peerConnection = peerConnectionRef.current ?? createPeerConnection()
+      const needsOffer = peerConnection.signalingState === 'stable'
       for (const track of screenStream.getVideoTracks()) {
         peerConnection.addTrack(track, screenStream)
         track.onended = () => {
@@ -650,10 +688,14 @@ function App() {
         }
       }
 
-      const offer = await peerConnection.createOffer()
-      await peerConnection.setLocalDescription(offer)
-      await relayWebRtcSignal('offer', offer)
-      appendSignal('screen share offer sent')
+      if (needsOffer || peerConnection.signalingState === 'stable') {
+        const offer = await peerConnection.createOffer()
+        await peerConnection.setLocalDescription(offer)
+        await relayWebRtcSignal('offer', offer)
+        appendSignal('screen share offer sent')
+      } else {
+        appendSignal('screen added; waiting for RTC negotiation')
+      }
     } catch {
       appendSignal('screen sharing was cancelled or blocked')
     }
@@ -818,10 +860,13 @@ function App() {
           </section>
 
           <section className="session-stage">
-            <div className="remote-screen">
+            <div className="remote-screen" ref={remoteScreenRef}>
               <div className="remote-toolbar">
                 <span>DESKTOP-OWNVIEW</span>
                 <div>
+                  <button title={isRemoteFullscreen ? 'Exit fullscreen' : 'Fullscreen'} onClick={toggleRemoteFullscreen}>
+                    {isRemoteFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
                   <button title="Send file"><CloudUpload size={16} /></button>
                   <button title="End session" onClick={endSession}><PhoneOff size={16} /></button>
                 </div>
@@ -1040,6 +1085,10 @@ function App() {
                   </div>
                   <span>ID {formatDeviceId(agent.deviceId)}</span>
                   <span>Last seen {new Date(agent.lastSeenAt).toLocaleTimeString()}</span>
+                  <span>
+                    Frames {agent.frameCount ?? 0}
+                    {agent.lastFrameAt ? ` / last ${new Date(agent.lastFrameAt).toLocaleTimeString()}` : ' / none yet'}
+                  </span>
                   <small>
                     Approval {agent.requireVisibleApproval ? 'required' : 'not required'} / Input {agent.allowRemoteInput ? 'allowed' : 'disabled'}
                   </small>

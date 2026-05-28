@@ -352,6 +352,16 @@ h2 {
   overflow: hidden;
 }
 
+.remote-screen:fullscreen {
+  display: grid;
+  grid-template-rows: 46px 1fr;
+  width: 100vw;
+  height: 100vh;
+  border: 0;
+  border-radius: 0;
+  background: #0b1118;
+}
+
 .remote-toolbar {
   display: flex;
   align-items: center;
@@ -394,6 +404,13 @@ h2 {
   text-align: center;
 }
 
+.remote-screen:fullscreen .screen-content {
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  background: #0b1118;
+}
+
 .screen-content strong {
   color: #18202a;
   font-size: 22px;
@@ -411,6 +428,18 @@ h2 {
   border-radius: 6px;
   background: #0b1118;
   object-fit: contain;
+}
+
+.remote-frame:focus {
+  outline: 3px solid #2eb086;
+  outline-offset: -3px;
+}
+
+.remote-screen:fullscreen .remote-video,
+.remote-screen:fullscreen .remote-frame {
+  width: 100vw;
+  height: calc(100vh - 46px);
+  border-radius: 0;
 }
 
 .local-preview {

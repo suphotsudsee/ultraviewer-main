@@ -401,6 +401,8 @@ const server = createServer(async (req, res) => {
           name: agent.name,
           connectedAt: agent.connectedAt,
           lastSeenAt: agent.lastSeenAt,
+          lastFrameAt: agent.lastFrameAt,
+          frameCount: agent.frameCount,
           requireVisibleApproval: agent.requireVisibleApproval,
           allowRemoteInput: agent.allowRemoteInput,
         })),
@@ -739,6 +741,8 @@ agentWss.on('connection', (socket, req) => {
     name: fallbackName,
     connectedAt: now,
     lastSeenAt: now,
+    lastFrameAt: '',
+    frameCount: 0,
     requireVisibleApproval: true,
     allowRemoteInput: false,
     socket,
@@ -792,6 +796,8 @@ agentWss.on('connection', (socket, req) => {
         const image = typeof message.image === 'string' ? message.image : ''
         if (!image.startsWith('data:image/jpeg;base64,') || image.length > 2_500_000) return
 
+        agent.lastFrameAt = new Date().toISOString()
+        agent.frameCount += 1
         broadcast(agentSession.partnerId, {
           type: 'agent:screen-frame',
           from: agent.deviceId,

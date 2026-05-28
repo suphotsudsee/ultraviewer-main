@@ -12,6 +12,7 @@ Current status:
 - Shows incoming support requests from web users
 - Sends approve/reject decisions back to the server
 - Captures the visible Windows screen after approval and streams low-rate JPEG frames
+- Captures the full Windows virtual desktop, including multiple monitors
 - Can accept mouse and keyboard input after approval when `allowRemoteInput` is `true`
 - Does not run as a hidden service
 - Does not support unattended access
