@@ -75,7 +75,34 @@ type RealtimeMessage =
   | { type: 'chat'; text: string }
   | { type: 'audit'; auditEntry: AuditEntry }
   | { type: 'webrtc'; signal: WebRtcSignal; auditEntry?: AuditEntry }
-  | { type: 'agent:screen-frame'; from: string; image: string; width: number; height: number; capturedAt: string }
+  | {
+    type: 'agent:screen-frame'
+    from: string
+    image: string
+    width: number
+    height: number
+    capturedAt: string
+    virtualScreen?: ScreenBounds
+    monitors?: ScreenMonitor[]
+  }
+
+interface ScreenBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+interface ScreenMonitor extends ScreenBounds {
+  id: string
+  name: string
+  primary: boolean
+}
+
+interface ScreenFrameMeta {
+  virtualScreen: ScreenBounds
+  monitors: ScreenMonitor[]
+}
 
 interface WebRtcSignal {
   type: WebRtcSignalType
@@ -156,6 +183,11 @@ function App() {
   const [hasRemoteScreen, setHasRemoteScreen] = useState(false)
   const [agentScreenFrame, setAgentScreenFrame] = useState('')
   const [isRemoteFullscreen, setIsRemoteFullscreen] = useState(false)
+  const [screenFrameMeta, setScreenFrameMeta] = useState<ScreenFrameMeta>({
+    virtualScreen: { x: 0, y: 0, width: 1, height: 1 },
+    monitors: [],
+  })
+  const [selectedMonitorId, setSelectedMonitorId] = useState('all')
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const localScreenStreamRef = useRef<MediaStream | null>(null)
@@ -197,6 +229,11 @@ function App() {
     setDataMessages((current) => [...current.slice(-5), message])
   }, [])
 
+  const selectedMonitor = useMemo(() => {
+    if (selectedMonitorId === 'all') return undefined
+    return screenFrameMeta.monitors.find((monitor) => monitor.id === selectedMonitorId)
+  }, [screenFrameMeta.monitors, selectedMonitorId])
+
   const sendAgentInput = useCallback(async (input: AgentInput) => {
     if (session.status !== 'connected' || !agentScreenFrame) return
 
@@ -208,24 +245,31 @@ function App() {
   }, [agentScreenFrame, appendSignal, session.deviceId, session.status, sessionToken])
 
   const pointerInputFromEvent = useCallback((
-    event: MouseEvent<HTMLImageElement> | WheelEvent<HTMLImageElement>,
+    event: MouseEvent<HTMLElement> | WheelEvent<HTMLElement>,
     action: 'move' | 'down' | 'up' | 'wheel',
   ): AgentInput => {
     const rect = event.currentTarget.getBoundingClientRect()
-    const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width))
-    const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height))
+    const localX = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width))
+    const localY = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height))
+    const virtual = screenFrameMeta.virtualScreen
+    const x = selectedMonitor
+      ? (selectedMonitor.x - virtual.x + (localX * selectedMonitor.width)) / virtual.width
+      : localX
+    const y = selectedMonitor
+      ? (selectedMonitor.y - virtual.y + (localY * selectedMonitor.height)) / virtual.height
+      : localY
     const buttons = ['left', 'middle', 'right']
     return {
       kind: 'mouse',
       action,
-      x,
-      y,
+      x: Math.min(1, Math.max(0, x)),
+      y: Math.min(1, Math.max(0, y)),
       button: buttons[event.button] ?? 'left',
-      deltaY: action === 'wheel' ? Number((event as WheelEvent<HTMLImageElement>).deltaY) : 0,
+      deltaY: action === 'wheel' ? Number((event as WheelEvent<HTMLElement>).deltaY) : 0,
     }
-  }, [])
+  }, [screenFrameMeta.virtualScreen, selectedMonitor])
 
-  const keyCodeFromEvent = useCallback((event: KeyboardEvent<HTMLImageElement>) => {
+  const keyCodeFromEvent = useCallback((event: KeyboardEvent<HTMLElement>) => {
     if (event.key.length === 1) return event.key.toUpperCase().charCodeAt(0)
 
     const keyMap: Record<string, number> = {
@@ -453,6 +497,12 @@ function App() {
 
       if (message.type === 'agent:screen-frame') {
         setAgentScreenFrame(message.image)
+        const virtualScreen = message.virtualScreen ?? { x: 0, y: 0, width: message.width || 1, height: message.height || 1 }
+        const monitors = message.monitors ?? []
+        setScreenFrameMeta({ virtualScreen, monitors })
+        setSelectedMonitorId((current) => (
+          current === 'all' || monitors.some((monitor) => monitor.id === current) ? current : 'all'
+        ))
         return
       }
 
@@ -483,6 +533,7 @@ function App() {
       setIsSharingScreen(false)
       setHasRemoteScreen(false)
       setAgentScreenFrame('')
+      setSelectedMonitorId('all')
       setDataMessages([])
       setSignalLog([])
     }
@@ -915,41 +966,79 @@ function App() {
                         muted
                       />
                     ) : agentScreenFrame ? (
-                      <img
-                        className="remote-frame"
-                        src={agentScreenFrame}
-                        alt="Native Windows agent screen"
-                        tabIndex={0}
-                        onMouseMove={(event) => {
-                          if (event.buttons) void sendAgentInput(pointerInputFromEvent(event, 'move'))
-                        }}
-                        onMouseDown={(event) => {
-                          event.currentTarget.focus()
-                          event.preventDefault()
-                          void sendAgentInput(pointerInputFromEvent(event, 'down'))
-                        }}
-                        onMouseUp={(event) => {
-                          event.preventDefault()
-                          void sendAgentInput(pointerInputFromEvent(event, 'up'))
-                        }}
-                        onContextMenu={(event) => event.preventDefault()}
-                        onWheel={(event) => {
-                          event.preventDefault()
-                          void sendAgentInput(pointerInputFromEvent(event, 'wheel'))
-                        }}
-                        onKeyDown={(event) => {
-                          const keyCode = keyCodeFromEvent(event)
-                          if (!keyCode) return
-                          event.preventDefault()
-                          void sendAgentInput({ kind: 'keyboard', action: 'down', keyCode, key: event.key })
-                        }}
-                        onKeyUp={(event) => {
-                          const keyCode = keyCodeFromEvent(event)
-                          if (!keyCode) return
-                          event.preventDefault()
-                          void sendAgentInput({ kind: 'keyboard', action: 'up', keyCode, key: event.key })
-                        }}
-                      />
+                      <div className="remote-frame-shell">
+                        {screenFrameMeta.monitors.length > 1 && (
+                          <div className="monitor-tabs">
+                            <button
+                              className={selectedMonitorId === 'all' ? 'active' : ''}
+                              type="button"
+                              onClick={() => setSelectedMonitorId('all')}
+                            >
+                              All
+                            </button>
+                            {screenFrameMeta.monitors.map((monitor, index) => (
+                              <button
+                                className={selectedMonitorId === monitor.id ? 'active' : ''}
+                                key={monitor.id}
+                                type="button"
+                                onClick={() => setSelectedMonitorId(monitor.id)}
+                              >
+                                {monitor.name || `Display ${index + 1}`}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div
+                          className={selectedMonitor ? 'remote-frame-crop' : 'remote-frame-crop all'}
+                          tabIndex={0}
+                          style={{
+                            aspectRatio: selectedMonitor
+                              ? `${selectedMonitor.width} / ${selectedMonitor.height}`
+                              : `${screenFrameMeta.virtualScreen.width} / ${screenFrameMeta.virtualScreen.height}`,
+                          }}
+                          onMouseMove={(event) => {
+                            if (event.buttons) void sendAgentInput(pointerInputFromEvent(event, 'move'))
+                          }}
+                          onMouseDown={(event) => {
+                            event.currentTarget.focus()
+                            event.preventDefault()
+                            void sendAgentInput(pointerInputFromEvent(event, 'down'))
+                          }}
+                          onMouseUp={(event) => {
+                            event.preventDefault()
+                            void sendAgentInput(pointerInputFromEvent(event, 'up'))
+                          }}
+                          onContextMenu={(event) => event.preventDefault()}
+                          onWheel={(event) => {
+                            event.preventDefault()
+                            void sendAgentInput(pointerInputFromEvent(event, 'wheel'))
+                          }}
+                          onKeyDown={(event) => {
+                            const keyCode = keyCodeFromEvent(event)
+                            if (!keyCode) return
+                            event.preventDefault()
+                            void sendAgentInput({ kind: 'keyboard', action: 'down', keyCode, key: event.key })
+                          }}
+                          onKeyUp={(event) => {
+                            const keyCode = keyCodeFromEvent(event)
+                            if (!keyCode) return
+                            event.preventDefault()
+                            void sendAgentInput({ kind: 'keyboard', action: 'up', keyCode, key: event.key })
+                          }}
+                        >
+                          <img
+                            className="remote-frame"
+                            src={agentScreenFrame}
+                            alt="Native Windows agent screen"
+                            style={selectedMonitor ? {
+                              width: `${(screenFrameMeta.virtualScreen.width / selectedMonitor.width) * 100}%`,
+                              height: `${(screenFrameMeta.virtualScreen.height / selectedMonitor.height) * 100}%`,
+                              left: `${((screenFrameMeta.virtualScreen.x - selectedMonitor.x) / selectedMonitor.width) * 100}%`,
+                              top: `${((screenFrameMeta.virtualScreen.y - selectedMonitor.y) / selectedMonitor.height) * 100}%`,
+                            } : undefined}
+                          />
+                        </div>
+                      </div>
                     ) : (
                       <>
                         <MonitorUp size={56} />

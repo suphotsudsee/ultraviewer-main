@@ -43,7 +43,13 @@ public sealed class ScreenCaptureService : IDisposable
             try
             {
                 var frame = CaptureVirtualScreen();
-                await _client.SendScreenFrameAsync(frame.Image, frame.Width, frame.Height, cancellationToken);
+                await _client.SendScreenFrameAsync(
+                    frame.Image,
+                    frame.Width,
+                    frame.Height,
+                    frame.VirtualScreen,
+                    frame.Monitors,
+                    cancellationToken);
                 await Task.Delay(TimeSpan.FromMilliseconds(900), cancellationToken);
             }
             catch (OperationCanceledException)
@@ -93,7 +99,24 @@ public sealed class ScreenCaptureService : IDisposable
         return new ScreenFrame(
             $"data:image/jpeg;base64,{Convert.ToBase64String(stream.ToArray())}",
             width,
-            height);
+            height,
+            new
+            {
+                x = bounds.Left,
+                y = bounds.Top,
+                width = bounds.Width,
+                height = bounds.Height,
+            },
+            Screen.AllScreens.Select((screen, index) => new
+            {
+                id = screen.DeviceName,
+                name = $"Display {index + 1}",
+                x = screen.Bounds.Left,
+                y = screen.Bounds.Top,
+                width = screen.Bounds.Width,
+                height = screen.Bounds.Height,
+                primary = screen.Primary,
+            }).Cast<object>().ToArray());
     }
 
     public void Dispose()
@@ -101,5 +124,5 @@ public sealed class ScreenCaptureService : IDisposable
         Stop();
     }
 
-    private sealed record ScreenFrame(string Image, int Width, int Height);
+    private sealed record ScreenFrame(string Image, int Width, int Height, object VirtualScreen, object[] Monitors);
 }

@@ -804,6 +804,8 @@ agentWss.on('connection', (socket, req) => {
           image,
           width: Number(message.width) || 0,
           height: Number(message.height) || 0,
+          virtualScreen: typeof message.virtualScreen === 'object' && message.virtualScreen !== null ? message.virtualScreen : undefined,
+          monitors: Array.isArray(message.monitors) ? message.monitors : [],
           capturedAt: String(message.capturedAt ?? new Date().toISOString()),
         })
       }

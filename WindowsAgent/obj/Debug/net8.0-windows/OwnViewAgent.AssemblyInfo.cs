@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OwnViewAgent")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d26e53da7302d7d51cc4d5e9e3bc937734b6f6d5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6d5474e4de40adef0deff65f72be4e989db58324")]
 [assembly: System.Reflection.AssemblyProductAttribute("OwnViewAgent")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OwnViewAgent")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

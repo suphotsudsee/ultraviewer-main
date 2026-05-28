@@ -98,7 +98,13 @@ public sealed class AgentClient : IDisposable
         return SendAsync(new { type = "agent.reject" }, cancellationToken);
     }
 
-    public Task SendScreenFrameAsync(string image, int width, int height, CancellationToken cancellationToken)
+    public Task SendScreenFrameAsync(
+        string image,
+        int width,
+        int height,
+        object virtualScreen,
+        object[] monitors,
+        CancellationToken cancellationToken)
     {
         return SendAsync(new
         {
@@ -106,6 +112,8 @@ public sealed class AgentClient : IDisposable
             image,
             width,
             height,
+            virtualScreen,
+            monitors,
             capturedAt = DateTimeOffset.UtcNow,
         }, cancellationToken);
     }
