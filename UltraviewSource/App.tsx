@@ -491,7 +491,10 @@ function App() {
     async function loadConfig() {
       try {
         const config = await getJson<PublicConfig>('/api/config')
-        if (!cancelled) setPublicConfig(config)
+        if (!cancelled) {
+          setPublicConfig(config)
+          setServerOnline(true)
+        }
       } catch {
         if (!cancelled) appendMessage('Using default WebRTC network config.')
       }
@@ -510,7 +513,10 @@ function App() {
     async function loadAgents() {
       try {
         const response = await getJson<{ agents: AgentInfo[] }>('/api/agents')
-        if (!cancelled) setAgents(response.agents)
+        if (!cancelled) {
+          setAgents(response.agents)
+          setServerOnline(true)
+        }
       } catch {
         if (!cancelled) setAgents([])
       }
@@ -533,6 +539,7 @@ function App() {
       `${protocol}://${window.location.host}/ws?deviceId=${session.deviceId}&token=${encodeURIComponent(sessionToken)}`,
     )
     socket.binaryType = 'arraybuffer'
+    socket.onopen = () => setServerOnline(true)
 
     socket.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) {
@@ -578,7 +585,6 @@ function App() {
     }
 
     socket.onerror = () => {
-      setServerOnline(false)
       appendMessage('Realtime channel disconnected.')
     }
 

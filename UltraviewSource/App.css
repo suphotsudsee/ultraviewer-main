@@ -665,7 +665,10 @@ h2 {
 }
 
 .signal-panel small {
+  display: block;
   color: #637386;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .signal-actions {
