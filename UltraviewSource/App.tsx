@@ -746,10 +746,25 @@ function App() {
   }
 
   async function approveSession() {
+    let approvedScreenStream: MediaStream | undefined
+
+    if (session.pendingRole === 'approver') {
+      try {
+        approvedScreenStream = await requestScreenStream()
+      } catch {
+        appendSignal('screen sharing was cancelled or blocked')
+        return
+      }
+    }
+
     try {
       const response = await postJson<SessionResponse>(`/api/sessions/${session.deviceId}/approve`, undefined, sessionToken)
       applySessionResponse(response)
+      if (approvedScreenStream) {
+        await publishScreenStream(approvedScreenStream)
+      }
     } catch {
+      approvedScreenStream?.getTracks().forEach((track) => track.stop())
       appendMessage('Approval failed because the server rejected the current session state.')
     }
   }
@@ -796,14 +811,8 @@ function App() {
     }
   }
 
-  async function shareScreen() {
-    if (session.status !== 'connected') {
-      appendSignal('connect the session before sharing screen')
-      return
-    }
-
-    try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+  async function requestScreenStream() {
+    return navigator.mediaDevices.getDisplayMedia({
         video: {
           width: { ideal: 1920, max: 3840 },
           height: { ideal: 1080, max: 2160 },
@@ -811,30 +820,45 @@ function App() {
         },
         audio: false,
       })
-      localScreenStreamRef.current = screenStream
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = screenStream
-      }
-      setIsSharingScreen(true)
+  }
 
-      const peerConnection = peerConnectionRef.current ?? createPeerConnection()
-      const needsOffer = peerConnection.signalingState === 'stable'
-      for (const track of screenStream.getVideoTracks()) {
-        peerConnection.addTrack(track, screenStream)
-        track.onended = () => {
-          setIsSharingScreen(false)
-          appendSignal('screen sharing stopped')
-        }
-      }
+  async function publishScreenStream(screenStream: MediaStream) {
+    localScreenStreamRef.current?.getTracks().forEach((track) => track.stop())
+    localScreenStreamRef.current = screenStream
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = screenStream
+    }
+    setIsSharingScreen(true)
 
-      if (needsOffer || peerConnection.signalingState === 'stable') {
-        const offer = await peerConnection.createOffer()
-        await peerConnection.setLocalDescription(offer)
-        await relayWebRtcSignal('offer', offer)
-        appendSignal('screen share offer sent')
-      } else {
-        appendSignal('screen added; waiting for RTC negotiation')
+    const peerConnection = peerConnectionRef.current ?? createPeerConnection()
+    const needsOffer = peerConnection.signalingState === 'stable'
+    for (const track of screenStream.getVideoTracks()) {
+      peerConnection.addTrack(track, screenStream)
+      track.onended = () => {
+        setIsSharingScreen(false)
+        appendSignal('screen sharing stopped')
       }
+    }
+
+    if (needsOffer || peerConnection.signalingState === 'stable') {
+      const offer = await peerConnection.createOffer()
+      await peerConnection.setLocalDescription(offer)
+      await relayWebRtcSignal('offer', offer)
+      appendSignal('screen share offer sent')
+    } else {
+      appendSignal('screen added; waiting for RTC negotiation')
+    }
+  }
+
+  async function shareScreen() {
+    if (session.status !== 'connected') {
+      appendSignal('connect the session before sharing screen')
+      return
+    }
+
+    try {
+      const screenStream = await requestScreenStream()
+      await publishScreenStream(screenStream)
     } catch {
       appendSignal('screen sharing was cancelled or blocked')
     }
@@ -1026,7 +1050,7 @@ function App() {
                       </button>
                       <button className="approve-button" onClick={approveSession}>
                         <CheckCircle2 size={18} />
-                        Approve
+                        Approve & Share
                       </button>
                     </div>
                   </div>
