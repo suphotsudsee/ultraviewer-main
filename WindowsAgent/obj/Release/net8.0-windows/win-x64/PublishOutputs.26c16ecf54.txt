@@ -1,7 +1,0 @@
-C:\fullstack\ultraviewer-main\WindowsAgent\publish\user2-agent-win-x64\OwnViewAgent.pdb
-C:\fullstack\ultraviewer-main\WindowsAgent\publish\user2-agent-win-x64\D3DCompiler_47_cor3.dll
-C:\fullstack\ultraviewer-main\WindowsAgent\publish\user2-agent-win-x64\PenImc_cor3.dll
-C:\fullstack\ultraviewer-main\WindowsAgent\publish\user2-agent-win-x64\PresentationNative_cor3.dll
-C:\fullstack\ultraviewer-main\WindowsAgent\publish\user2-agent-win-x64\vcruntime140_cor3.dll
-C:\fullstack\ultraviewer-main\WindowsAgent\publish\user2-agent-win-x64\wpfgfx_cor3.dll
-C:\fullstack\ultraviewer-main\WindowsAgent\publish\user2-agent-win-x64\OwnViewAgent.exe

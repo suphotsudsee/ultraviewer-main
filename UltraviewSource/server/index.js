@@ -16,6 +16,7 @@ const HOST = process.env.OWNVIEW_HOST ?? '127.0.0.1'
 const PUBLIC_URL = process.env.OWNVIEW_PUBLIC_URL ?? `http://${HOST}:${PORT}`
 const ALLOWED_ORIGIN = process.env.OWNVIEW_ALLOWED_ORIGIN ?? '*'
 const AGENT_SHARED_KEY = process.env.OWNVIEW_AGENT_SHARED_KEY ?? ''
+const MAX_AGENT_FRAME_BYTES = 2_500_000
 const DIST_DIR = join(APP_DIR, 'dist')
 const DATA_DIR = join(SERVER_DIR, 'data')
 const AUDIT_LOG_PATH = join(DATA_DIR, 'audit-log.jsonl')
@@ -319,6 +320,17 @@ function broadcast(deviceId, payload) {
   }
 }
 
+function broadcastBinary(deviceId, payload) {
+  const sessionClients = clients.get(deviceId)
+  if (!sessionClients) return
+
+  for (const socket of sessionClients) {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(payload, { binary: true })
+    }
+  }
+}
+
 function notifyAgent(deviceId, payload) {
   const agent = [...agents.values()].find((candidate) => candidate.deviceId === deviceId)
   if (agent?.socket.readyState === WebSocket.OPEN) {
@@ -368,6 +380,27 @@ function clampNumber(value, min, max) {
   const number = Number(value)
   if (!Number.isFinite(number)) return min
   return Math.min(max, Math.max(min, number))
+}
+
+function parseBinaryFrame(data) {
+  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data)
+  if (buffer.length < 5) return undefined
+
+  const metadataLength = buffer.readUInt32LE(0)
+  if (metadataLength < 2 || metadataLength > 64_000 || buffer.length < 4 + metadataLength + 2) return undefined
+
+  const metadata = JSON.parse(buffer.subarray(4, 4 + metadataLength).toString('utf8'))
+  const image = buffer.subarray(4 + metadataLength)
+  if (image.length > MAX_AGENT_FRAME_BYTES || image[0] !== 0xff || image[1] !== 0xd8) return undefined
+
+  return { metadata, image }
+}
+
+function buildBinaryFrame(metadata, image) {
+  const metadataBuffer = Buffer.from(JSON.stringify(metadata), 'utf8')
+  const lengthBuffer = Buffer.allocUnsafe(4)
+  lengthBuffer.writeUInt32LE(metadataBuffer.length, 0)
+  return Buffer.concat([lengthBuffer, metadataBuffer, image])
 }
 
 const server = createServer(async (req, res) => {
@@ -757,8 +790,31 @@ agentWss.on('connection', (socket, req) => {
     publicUrl: PUBLIC_URL,
   }))
 
-  socket.on('message', async (data) => {
+  socket.on('message', async (data, isBinary) => {
     try {
+      if (isBinary) {
+        agent.lastSeenAt = new Date().toISOString()
+        const agentSession = getExistingSession(agent.deviceId)
+        if (!agentSession || agentSession.status !== 'connected' || !agentSession.partnerId) return
+
+        const frame = parseBinaryFrame(data)
+        if (!frame || frame.metadata?.type !== 'agent.screen.frame') return
+
+        agent.lastFrameAt = new Date().toISOString()
+        agent.frameCount += 1
+        broadcastBinary(agentSession.partnerId, buildBinaryFrame({
+          type: 'agent:screen-frame',
+          from: agent.deviceId,
+          width: Number(frame.metadata.width) || 0,
+          height: Number(frame.metadata.height) || 0,
+          virtualScreen: typeof frame.metadata.virtualScreen === 'object' && frame.metadata.virtualScreen !== null ? frame.metadata.virtualScreen : undefined,
+          monitors: Array.isArray(frame.metadata.monitors) ? frame.metadata.monitors : [],
+          capturedAt: String(frame.metadata.capturedAt ?? new Date().toISOString()),
+          encoding: 'jpeg',
+        }, frame.image))
+        return
+      }
+
       const message = JSON.parse(String(data))
       agent.lastSeenAt = new Date().toISOString()
 
@@ -794,7 +850,7 @@ agentWss.on('connection', (socket, req) => {
         if (!agentSession || agentSession.status !== 'connected' || !agentSession.partnerId) return
 
         const image = typeof message.image === 'string' ? message.image : ''
-        if (!image.startsWith('data:image/jpeg;base64,') || image.length > 2_500_000) return
+        if (!image.startsWith('data:image/jpeg;base64,') || image.length > MAX_AGENT_FRAME_BYTES) return
 
         agent.lastFrameAt = new Date().toISOString()
         agent.frameCount += 1

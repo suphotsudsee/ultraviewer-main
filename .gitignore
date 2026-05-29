@@ -1,4 +1,8 @@
 UltraviewSource/node_modules
 UltraviewSource/.env
+UltraviewSource/dist/
+UltraviewSource/server/data/
 WindowsAgent/agentsettings.json
-WindowsAgent/publish/**/agentsettings.json
+WindowsAgent/bin/
+WindowsAgent/obj/
+WindowsAgent/publish/

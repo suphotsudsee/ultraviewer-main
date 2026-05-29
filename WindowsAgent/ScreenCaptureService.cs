@@ -5,6 +5,12 @@ namespace OwnViewAgent;
 
 public sealed class ScreenCaptureService : IDisposable
 {
+    private const int MaxFrameWidth = 1920;
+    private const int MaxJpegBytes = 2_200_000;
+    private const long PreferredJpegQuality = 82L;
+    private const long MinimumJpegQuality = 68L;
+    private static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(350);
+
     private readonly AgentClient _client;
     private readonly ConsentForm _form;
     private CancellationTokenSource? _captureCancellation;
@@ -17,7 +23,11 @@ public sealed class ScreenCaptureService : IDisposable
 
     public void Start(CancellationToken applicationCancellation)
     {
-        Stop();
+        if (_captureCancellation is not null)
+        {
+            return;
+        }
+
         _captureCancellation = CancellationTokenSource.CreateLinkedTokenSource(applicationCancellation);
         _ = Task.Run(() => CaptureLoopAsync(_captureCancellation.Token), _captureCancellation.Token);
     }
@@ -44,13 +54,13 @@ public sealed class ScreenCaptureService : IDisposable
             {
                 var frame = CaptureVirtualScreen();
                 await _client.SendScreenFrameAsync(
-                    frame.Image,
+                    frame.JpegBytes,
                     frame.Width,
                     frame.Height,
                     frame.VirtualScreen,
                     frame.Monitors,
                     cancellationToken);
-                await Task.Delay(TimeSpan.FromMilliseconds(900), cancellationToken);
+                await Task.Delay(FrameInterval, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -78,26 +88,26 @@ public sealed class ScreenCaptureService : IDisposable
             graphics.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
         }
 
-        const int maxWidth = 1280;
-        var scale = bounds.Width > maxWidth ? maxWidth / (double)bounds.Width : 1.0;
+        var scale = bounds.Width > MaxFrameWidth ? MaxFrameWidth / (double)bounds.Width : 1.0;
         var width = Math.Max(1, (int)(bounds.Width * scale));
         var height = Math.Max(1, (int)(bounds.Height * scale));
 
-        using var resized = new Bitmap(width, height);
-        using (var graphics = Graphics.FromImage(resized))
+        var encoder = ImageCodecInfo.GetImageEncoders().First(codec => codec.MimeType == "image/jpeg");
+        var jpegBytes = EncodeJpegBytes(screenshot, width, height, PreferredJpegQuality, encoder);
+        if (jpegBytes.Length > MaxJpegBytes)
         {
-            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-            graphics.DrawImage(screenshot, 0, 0, width, height);
+            jpegBytes = EncodeJpegBytes(screenshot, width, height, MinimumJpegQuality, encoder);
         }
 
-        using var stream = new MemoryStream();
-        var encoder = ImageCodecInfo.GetImageEncoders().First(codec => codec.MimeType == "image/jpeg");
-        using var encoderParameters = new EncoderParameters(1);
-        encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, 55L);
-        resized.Save(stream, encoder, encoderParameters);
+        while (jpegBytes.Length > MaxJpegBytes && width > 1280)
+        {
+            width = Math.Max(1280, (int)(width * 0.88));
+            height = Math.Max(1, (int)(height * 0.88));
+            jpegBytes = EncodeJpegBytes(screenshot, width, height, MinimumJpegQuality, encoder);
+        }
 
         return new ScreenFrame(
-            $"data:image/jpeg;base64,{Convert.ToBase64String(stream.ToArray())}",
+            jpegBytes,
             width,
             height,
             new
@@ -119,10 +129,30 @@ public sealed class ScreenCaptureService : IDisposable
             }).Cast<object>().ToArray());
     }
 
+    private static byte[] EncodeJpegBytes(Bitmap source, int width, int height, long quality, ImageCodecInfo encoder)
+    {
+        using var resized = new Bitmap(width, height);
+        using (var graphics = Graphics.FromImage(resized))
+        {
+            graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            graphics.DrawImage(source, 0, 0, width, height);
+        }
+
+        using var stream = new MemoryStream();
+        using var encoderParameters = new EncoderParameters(1);
+        encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, quality);
+        resized.Save(stream, encoder, encoderParameters);
+
+        return stream.ToArray();
+    }
+
     public void Dispose()
     {
         Stop();
     }
 
-    private sealed record ScreenFrame(string Image, int Width, int Height, object VirtualScreen, object[] Monitors);
+    private sealed record ScreenFrame(byte[] JpegBytes, int Width, int Height, object VirtualScreen, object[] Monitors);
 }

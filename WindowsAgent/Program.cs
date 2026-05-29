@@ -21,15 +21,13 @@ internal static class Program
             cancellation.Cancel();
         };
         client.StatusChanged += form.SetStatus;
-        client.MessageReceived += message => HandleAgentMessage(form, screenCapture, inputControl, message);
+        client.MessageReceived += message => HandleAgentMessage(form, screenCapture, inputControl, message, cancellation.Token);
         form.ApproveRequested += async () =>
         {
             try
             {
                 await client.ApproveAsync(cancellation.Token);
-                form.SetActiveSession("Support request approved. Native screen sharing is active.");
-                screenCapture.Start(cancellation.Token);
-                inputControl.SetSessionApproved(true);
+                form.SetStatus("Approval sent. Waiting for the server to start screen sharing.");
             }
             catch (Exception ex)
             {
@@ -70,7 +68,8 @@ internal static class Program
         ConsentForm form,
         ScreenCaptureService screenCapture,
         InputControlService inputControl,
-        string message)
+        string message,
+        CancellationToken applicationCancellation)
     {
         form.AppendLog(message);
 
@@ -99,7 +98,7 @@ internal static class Program
                     break;
                 case "support.approved":
                     form.SetActiveSession("Support request approved. Native screen sharing is active.");
-                    screenCapture.Start(CancellationToken.None);
+                    screenCapture.Start(applicationCancellation);
                     inputControl.SetSessionApproved(true);
                     break;
                 case "support.rejected":

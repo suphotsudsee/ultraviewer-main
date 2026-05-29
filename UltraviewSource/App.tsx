@@ -104,6 +104,22 @@ interface ScreenFrameMeta {
   monitors: ScreenMonitor[]
 }
 
+interface BinaryScreenFrame {
+  imageUrl: string
+  width: number
+  height: number
+  virtualScreen?: ScreenBounds
+  monitors?: ScreenMonitor[]
+}
+
+interface BinaryScreenFrameMetadata {
+  type: 'agent:screen-frame'
+  width: number
+  height: number
+  virtualScreen?: ScreenBounds
+  monitors?: ScreenMonitor[]
+}
+
 interface WebRtcSignal {
   type: WebRtcSignalType
   from: string
@@ -117,6 +133,28 @@ type WebRtcPayload = RTCSessionDescriptionInit | RTCIceCandidateInit | Record<st
 type AgentInput =
   | { kind: 'mouse'; action: 'move' | 'down' | 'up' | 'wheel'; x: number; y: number; button?: string; deltaY?: number }
   | { kind: 'keyboard'; action: 'down' | 'up'; keyCode: number; key: string }
+
+function parseBinaryScreenFrame(buffer: ArrayBuffer): BinaryScreenFrame | undefined {
+  if (buffer.byteLength < 6) return undefined
+
+  const view = new DataView(buffer)
+  const metadataLength = view.getUint32(0, true)
+  if (metadataLength < 2 || metadataLength > 64_000 || buffer.byteLength < 4 + metadataLength + 2) return undefined
+
+  const metadataBytes = new Uint8Array(buffer, 4, metadataLength)
+  const metadata = JSON.parse(new TextDecoder().decode(metadataBytes)) as BinaryScreenFrameMetadata
+  if (metadata.type !== 'agent:screen-frame') return undefined
+
+  const imageBytes = new Uint8Array(buffer, 4 + metadataLength)
+  const imageUrl = URL.createObjectURL(new Blob([imageBytes], { type: 'image/jpeg' }))
+  return {
+    imageUrl,
+    width: metadata.width,
+    height: metadata.height,
+    virtualScreen: metadata.virtualScreen,
+    monitors: metadata.monitors,
+  }
+}
 
 const fallbackSession: SessionSnapshot = {
   deviceId: '000000000',
@@ -195,6 +233,7 @@ function App() {
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteScreenRef = useRef<HTMLDivElement | null>(null)
+  const agentScreenFrameUrlRef = useRef<string>('')
   const [messages, setMessages] = useState<string[]>([
     'System ready. Every support session requires visible user consent.',
     'Share your ID and password only with a trusted support operator.',
@@ -223,6 +262,28 @@ function App() {
 
   const appendSignal = useCallback((message: string) => {
     setSignalLog((current) => [...current.slice(-5), message])
+  }, [])
+
+  const showAgentScreenFrame = useCallback((
+    imageUrl: string,
+    width: number,
+    height: number,
+    virtualScreen?: ScreenBounds,
+    monitors: ScreenMonitor[] = [],
+  ) => {
+    if (agentScreenFrameUrlRef.current && agentScreenFrameUrlRef.current !== imageUrl) {
+      URL.revokeObjectURL(agentScreenFrameUrlRef.current)
+    }
+
+    agentScreenFrameUrlRef.current = imageUrl.startsWith('blob:') ? imageUrl : ''
+    setAgentScreenFrame(imageUrl)
+    setScreenFrameMeta({
+      virtualScreen: virtualScreen ?? { x: 0, y: 0, width: width || 1, height: height || 1 },
+      monitors,
+    })
+    setSelectedMonitorId((current) => (
+      current === 'all' || monitors.some((monitor) => monitor.id === current) ? current : 'all'
+    ))
   }, [])
 
   const appendDataMessage = useCallback((message: string) => {
@@ -471,8 +532,21 @@ function App() {
     const socket = new WebSocket(
       `${protocol}://${window.location.host}/ws?deviceId=${session.deviceId}&token=${encodeURIComponent(sessionToken)}`,
     )
+    socket.binaryType = 'arraybuffer'
 
     socket.onmessage = (event) => {
+      if (event.data instanceof ArrayBuffer) {
+        try {
+          const frame = parseBinaryScreenFrame(event.data)
+          if (frame) {
+            showAgentScreenFrame(frame.imageUrl, frame.width, frame.height, frame.virtualScreen, frame.monitors ?? [])
+          }
+        } catch {
+          appendSignal('received an unreadable native screen frame')
+        }
+        return
+      }
+
       const message = JSON.parse(event.data) as RealtimeMessage
       if (message.type === 'session:update') {
         setSession(message.session)
@@ -496,13 +570,7 @@ function App() {
       }
 
       if (message.type === 'agent:screen-frame') {
-        setAgentScreenFrame(message.image)
-        const virtualScreen = message.virtualScreen ?? { x: 0, y: 0, width: message.width || 1, height: message.height || 1 }
-        const monitors = message.monitors ?? []
-        setScreenFrameMeta({ virtualScreen, monitors })
-        setSelectedMonitorId((current) => (
-          current === 'all' || monitors.some((monitor) => monitor.id === current) ? current : 'all'
-        ))
+        showAgentScreenFrame(message.image, message.width, message.height, message.virtualScreen, message.monitors ?? [])
         return
       }
 
@@ -517,7 +585,7 @@ function App() {
     return () => {
       socket.close()
     }
-  }, [appendAudit, appendMessage, appendSignal, handleWebRtcSignal, serverOnline, session.deviceId, sessionToken])
+  }, [appendAudit, appendMessage, appendSignal, handleWebRtcSignal, serverOnline, session.deviceId, sessionToken, showAgentScreenFrame])
 
   useEffect(() => {
     if (session.status !== 'connected') {
@@ -532,12 +600,22 @@ function App() {
       setRtcState('idle')
       setIsSharingScreen(false)
       setHasRemoteScreen(false)
+      if (agentScreenFrameUrlRef.current) {
+        URL.revokeObjectURL(agentScreenFrameUrlRef.current)
+        agentScreenFrameUrlRef.current = ''
+      }
       setAgentScreenFrame('')
       setSelectedMonitorId('all')
       setDataMessages([])
       setSignalLog([])
     }
   }, [session.status])
+
+  useEffect(() => () => {
+    if (agentScreenFrameUrlRef.current) {
+      URL.revokeObjectURL(agentScreenFrameUrlRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteScreenStreamRef.current) {
@@ -720,7 +798,11 @@ function App() {
 
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: {
+          width: { ideal: 1920, max: 3840 },
+          height: { ideal: 1080, max: 2160 },
+          frameRate: { ideal: 30, max: 30 },
+        },
         audio: false,
       })
       localScreenStreamRef.current = screenStream

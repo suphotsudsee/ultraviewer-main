@@ -99,23 +99,30 @@ public sealed class AgentClient : IDisposable
     }
 
     public Task SendScreenFrameAsync(
-        string image,
+        byte[] jpegBytes,
         int width,
         int height,
         object virtualScreen,
         object[] monitors,
         CancellationToken cancellationToken)
     {
-        return SendAsync(new
+        var metadataJson = JsonSerializer.Serialize(new
         {
             type = "agent.screen.frame",
-            image,
             width,
             height,
             virtualScreen,
             monitors,
             capturedAt = DateTimeOffset.UtcNow,
-        }, cancellationToken);
+            encoding = "jpeg",
+        });
+        var metadataBytes = Encoding.UTF8.GetBytes(metadataJson);
+        var payload = new byte[sizeof(int) + metadataBytes.Length + jpegBytes.Length];
+        BitConverter.GetBytes(metadataBytes.Length).CopyTo(payload, 0);
+        metadataBytes.CopyTo(payload, sizeof(int));
+        jpegBytes.CopyTo(payload, sizeof(int) + metadataBytes.Length);
+
+        return SendBinaryAsync(payload, cancellationToken);
     }
 
     private string BuildQuery()
@@ -137,6 +144,19 @@ public sealed class AgentClient : IDisposable
         try
         {
             await _socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
+    }
+
+    private async Task SendBinaryAsync(byte[] payload, CancellationToken cancellationToken)
+    {
+        await _sendLock.WaitAsync(cancellationToken);
+        try
+        {
+            await _socket.SendAsync(payload, WebSocketMessageType.Binary, true, cancellationToken);
         }
         finally
         {
