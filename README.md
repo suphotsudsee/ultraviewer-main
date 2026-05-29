@@ -66,7 +66,7 @@ with `getDisplayMedia` requires a secure context, so a raw `http://PUBLIC_IP`
 URL is not enough for real screen sharing. Use a domain with TLS, for example:
 
 ```text
-https://remote.example.com
+https://phoubonviewer.phoubon.in.th
 ```
 
 Build and run the production server:
@@ -77,8 +77,8 @@ npm install
 npm run build
 set OWNVIEW_HOST=0.0.0.0
 set OWNVIEW_SIGNAL_PORT=8787
-set OWNVIEW_PUBLIC_URL=https://remote.example.com
-set OWNVIEW_ALLOWED_ORIGIN=https://remote.example.com
+set OWNVIEW_PUBLIC_URL=https://phoubonviewer.phoubon.in.th
+set OWNVIEW_ALLOWED_ORIGIN=https://phoubonviewer.phoubon.in.th
 npm run start
 ```
 

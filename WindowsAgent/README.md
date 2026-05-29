@@ -60,7 +60,7 @@ Edit `agentsettings.json`:
 
 ```json
 {
-  "serverUrl": "https://remote.example.com",
+  "serverUrl": "https://phoubonviewer.phoubon.in.th",
   "agentKey": "change-this-agent-key",
   "agentName": "DESKTOP-OWNVIEW",
   "requireVisibleApproval": true,
