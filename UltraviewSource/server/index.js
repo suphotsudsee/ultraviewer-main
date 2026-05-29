@@ -706,7 +706,11 @@ const agentWss = new WebSocketServer({ noServer: true })
 
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
-  const target = url.pathname === '/ws' ? wss : url.pathname === '/agent' ? agentWss : undefined
+  const target = url.pathname === '/agent' || (url.pathname === '/ws' && url.searchParams.get('agent') === '1')
+    ? agentWss
+    : url.pathname === '/ws'
+      ? wss
+      : undefined
 
   if (!target) {
     socket.destroy()

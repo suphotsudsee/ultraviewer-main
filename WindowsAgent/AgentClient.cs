@@ -25,7 +25,7 @@ public sealed class AgentClient : IDisposable
         var builder = new UriBuilder(baseUri)
         {
             Scheme = scheme,
-            Path = "/agent",
+            Path = "/ws",
             Query = BuildQuery(),
         };
 
@@ -127,7 +127,7 @@ public sealed class AgentClient : IDisposable
 
     private string BuildQuery()
     {
-        var query = $"name={Uri.EscapeDataString(_settings.AgentName)}";
+        var query = $"agent=1&name={Uri.EscapeDataString(_settings.AgentName)}";
         if (!string.IsNullOrWhiteSpace(_settings.AgentKey))
         {
             query += $"&agentKey={Uri.EscapeDataString(_settings.AgentKey)}";
