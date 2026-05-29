@@ -70,7 +70,7 @@ public sealed class AgentClient : IDisposable
                 result = await _socket.ReceiveAsync(buffer, cancellationToken);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    StatusChanged?.Invoke("Disconnected from server.");
+                    StatusChanged?.Invoke(FormatCloseStatus(result));
                     return;
                 }
 
@@ -79,7 +79,7 @@ public sealed class AgentClient : IDisposable
 
             if (result.MessageType == WebSocketMessageType.Close)
             {
-                StatusChanged?.Invoke("Disconnected from server.");
+                StatusChanged?.Invoke(FormatCloseStatus(result));
                 return;
             }
 
@@ -96,6 +96,14 @@ public sealed class AgentClient : IDisposable
     public Task RejectAsync(CancellationToken cancellationToken)
     {
         return SendAsync(new { type = "agent.reject" }, cancellationToken);
+    }
+
+    private static string FormatCloseStatus(WebSocketReceiveResult result)
+    {
+        var reason = string.IsNullOrWhiteSpace(result.CloseStatusDescription)
+            ? "no reason provided"
+            : result.CloseStatusDescription;
+        return $"Disconnected from server: {(int?)result.CloseStatus ?? 0} {result.CloseStatus} ({reason}).";
     }
 
     public Task SendScreenFrameAsync(

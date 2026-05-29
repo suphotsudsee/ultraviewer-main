@@ -413,7 +413,12 @@ const server = createServer(async (req, res) => {
 
   try {
     if (req.method === 'GET' && url.pathname === '/api/health') {
-      json(res, 200, { ok: true, sessions: sessions.size, publicUrl: PUBLIC_URL })
+      json(res, 200, {
+        ok: true,
+        sessions: sessions.size,
+        publicUrl: PUBLIC_URL,
+        agentWebSocketPath: '/ws?agent=1',
+      })
       return
     }
 
